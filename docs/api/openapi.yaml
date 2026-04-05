@@ -1,0 +1,504 @@
+openapi: 3.1.0
+info:
+  title: Study Sprint Board API
+  version: 1.0.0
+  description: |
+    Study Sprint Board の分離 API 構成向け OpenAPI。
+    このファイルを SPA と API の HTTP 契約の正本として扱う。
+servers:
+  - url: http://localhost:4010
+    description: Local API server
+tags:
+  - name: Health
+  - name: Auth
+  - name: Board
+  - name: Tasks
+  - name: Dashboard
+paths:
+  /health:
+    get:
+      tags: [Health]
+      summary: API 稼働確認
+      responses:
+        "200":
+          description: API が稼働中
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+  /api/auth/signin:
+    post:
+      tags: [Auth]
+      summary: サインイン
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SignInInput"
+      responses:
+        "200":
+          description: セッション作成成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SignInResponse"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+  /api/auth/signout:
+    post:
+      tags: [Auth]
+      summary: サインアウト
+      responses:
+        "204":
+          description: セッション破棄成功
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+  /api/board:
+    get:
+      tags: [Board]
+      summary: SPA 初期表示用 snapshot 取得
+      security:
+        - sessionCookie: []
+      responses:
+        "200":
+          description: board snapshot
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RepositorySnapshot"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+  /api/tasks:
+    get:
+      tags: [Tasks]
+      summary: タスク一覧取得
+      security:
+        - sessionCookie: []
+      parameters:
+        - in: query
+          name: status
+          schema:
+            $ref: "#/components/schemas/TaskStatus"
+        - in: query
+          name: priority
+          schema:
+            $ref: "#/components/schemas/TaskPriority"
+        - in: query
+          name: assigneeId
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: タスク一覧
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TaskView"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+    post:
+      tags: [Tasks]
+      summary: タスク作成
+      security:
+        - sessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TaskFormInput"
+      responses:
+        "201":
+          description: 作成されたタスク
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TaskView"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+  /api/tasks/{taskId}:
+    get:
+      tags: [Tasks]
+      summary: タスク詳細取得
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: "#/components/parameters/TaskId"
+      responses:
+        "200":
+          description: タスク詳細
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TaskView"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+    patch:
+      tags: [Tasks]
+      summary: タスク更新
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: "#/components/parameters/TaskId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TaskFormInput"
+      responses:
+        "200":
+          description: 更新されたタスク
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TaskView"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+  /api/tasks/{taskId}/comments:
+    post:
+      tags: [Tasks]
+      summary: コメント投稿
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: "#/components/parameters/TaskId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CommentInput"
+      responses:
+        "201":
+          description: 作成されたコメント
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommentView"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+  /api/dashboard/summary:
+    get:
+      tags: [Dashboard]
+      summary: ダッシュボード集計取得
+      security:
+        - sessionCookie: []
+      responses:
+        "200":
+          description: ダッシュボード集計
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardSummary"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: study_sprint_board_session
+  parameters:
+    TaskId:
+      in: path
+      name: taskId
+      required: true
+      schema:
+        type: string
+        minLength: 1
+  responses:
+    ValidationError:
+      description: バリデーションエラー
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    UnauthorizedError:
+      description: サインインが必要
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    NotFoundError:
+      description: 対象が見つからない
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    InternalServerError:
+      description: サーバー内部エラー
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+  schemas:
+    HealthResponse:
+      type: object
+      required: [ok]
+      properties:
+        ok:
+          type: boolean
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+        details:
+          type: object
+          additionalProperties:
+            type: string
+    UserRole:
+      type: string
+      enum: [user, admin]
+    TaskStatus:
+      type: string
+      enum: [todo, in_progress, in_review, done]
+    TaskPriority:
+      type: string
+      enum: [low, medium, high, urgent]
+    AppUser:
+      type: object
+      required: [id, email, name, role]
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        name:
+          type: string
+        role:
+          $ref: "#/components/schemas/UserRole"
+    AppLabel:
+      type: object
+      required: [id, name, color]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        color:
+          type: string
+    AppComment:
+      type: object
+      required: [id, taskId, authorId, content, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        taskId:
+          type: string
+          format: uuid
+        authorId:
+          type: string
+          format: uuid
+        content:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+    CommentView:
+      allOf:
+        - $ref: "#/components/schemas/AppComment"
+        - type: object
+          required: [author]
+          properties:
+            author:
+              $ref: "#/components/schemas/AppUser"
+    AppTask:
+      type: object
+      required:
+        [id, title, description, status, priority, assigneeId, createdById, labelIds, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        description:
+          type: string
+        status:
+          $ref: "#/components/schemas/TaskStatus"
+        priority:
+          $ref: "#/components/schemas/TaskPriority"
+        dueDate:
+          anyOf:
+            - type: string
+              pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+            - type: "null"
+        assigneeId:
+          anyOf:
+            - type: string
+              format: uuid
+            - type: "null"
+        createdById:
+          type: string
+          format: uuid
+        labelIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    TaskView:
+      allOf:
+        - $ref: "#/components/schemas/AppTask"
+        - type: object
+          required: [assignee, createdBy, labels, comments]
+          properties:
+            assignee:
+              anyOf:
+                - $ref: "#/components/schemas/AppUser"
+                - type: "null"
+            createdBy:
+              $ref: "#/components/schemas/AppUser"
+            labels:
+              type: array
+              items:
+                $ref: "#/components/schemas/AppLabel"
+            comments:
+              type: array
+              items:
+                $ref: "#/components/schemas/CommentView"
+    BoardState:
+      type: object
+      required: [users, labels, tasks, comments]
+      properties:
+        users:
+          type: array
+          items:
+            $ref: "#/components/schemas/AppUser"
+        labels:
+          type: array
+          items:
+            $ref: "#/components/schemas/AppLabel"
+        tasks:
+          type: array
+          items:
+            $ref: "#/components/schemas/AppTask"
+        comments:
+          type: array
+          items:
+            $ref: "#/components/schemas/AppComment"
+    RepositorySnapshot:
+      type: object
+      required: [state, currentUserId]
+      properties:
+        state:
+          $ref: "#/components/schemas/BoardState"
+        currentUserId:
+          anyOf:
+            - type: string
+              format: uuid
+            - type: "null"
+    SignInInput:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+    SignInResponse:
+      type: object
+      required: [userId]
+      properties:
+        userId:
+          type: string
+          format: uuid
+    TaskFormInput:
+      type: object
+      required: [title, description, status, priority, dueDate, assigneeId, labelIds]
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 100
+        description:
+          type: string
+          maxLength: 500
+        status:
+          $ref: "#/components/schemas/TaskStatus"
+        priority:
+          $ref: "#/components/schemas/TaskPriority"
+        dueDate:
+          anyOf:
+            - type: string
+              pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+            - type: "null"
+        assigneeId:
+          anyOf:
+            - type: string
+              format: uuid
+            - type: "null"
+        labelIds:
+          type: array
+          maxItems: 5
+          items:
+            type: string
+            format: uuid
+    CommentInput:
+      type: object
+      required: [content]
+      properties:
+        content:
+          type: string
+          minLength: 1
+          maxLength: 280
+    DashboardSummary:
+      type: object
+      required: [assignedToMe, statusCounts, dueSoon, recentlyUpdated]
+      properties:
+        assignedToMe:
+          type: integer
+        statusCounts:
+          type: object
+          required: [todo, in_progress, in_review, done]
+          properties:
+            todo:
+              type: integer
+            in_progress:
+              type: integer
+            in_review:
+              type: integer
+            done:
+              type: integer
+        dueSoon:
+          type: array
+          items:
+            $ref: "#/components/schemas/TaskView"
+        recentlyUpdated:
+          type: array
+          items:
+            $ref: "#/components/schemas/TaskView"

@@ -1,0 +1,41 @@
+# dependencies
+node_modules/
+.pnpm-store/
+
+# next.js
+.next/
+out/
+
+# build
+dist/
+build/
+
+# env
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# turbo
+.turbo/
+
+# prisma
+prisma/migrations/**/migration_lock.toml
+
+# test
+coverage/
+test-results/
+playwright-report/
+
+# misc
+*.log
+*.tsbuildinfo
