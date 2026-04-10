@@ -2,50 +2,56 @@
 
 ## このリポジトリについて
 
-このリポジトリは **教育用の見本プロジェクト** です。複雑さを増やしすぎず、SPA と独立 API の責務分離を読める状態を保ってください。
+このリポジトリは `Study Sprint Board` の **Vite SPA + 独立 Express API 見本** です。同じ題材でも Next.js 一体型や Supabase 構成とは違い、**HTTP 契約を境界にして Web と API を分ける** ことが主題です。
 
-## 基本方針
+- 主な変更対象は `apps/web` と `apps/api`
+- `packages/shared` は共有型・validation・seed helper の置き場であり、契約の唯一の正本ではありません
+- docs と実装のずれは教材として致命的なので、境界変更時は関連 docs も必ず更新します
 
-- `apps/web` と `apps/api` を中心に変更する
-- `packages/shared` は補助コード置き場として使い、契約の正本にはしない
-- 破壊的変更を避け、既存の教材導線を壊さない
-- 過度な抽象化を追加しない
-- docs と実装を必ず揃える
+## まず確認するファイル
 
-## 編集前に確認すること
+| 目的 | ファイル |
+| --- | --- |
+| 全体像 | `README.md`, `docs/architecture.md` |
+| 通信契約 | `docs/api/openapi.yaml`, `docs/api-spec.md` |
+| 認証境界 | `docs/auth.md`, `apps/api/src/app.ts` |
+| 配備境界 | `docs/deployment.md` |
+| 永続化モデル | `apps/api/prisma/schema.prisma` |
+| 領域別の詳細ルール | `.github/instructions/web.instructions.md`, `.github/instructions/docs.instructions.md`, `.github/instructions/ci.instructions.md` |
 
-1. 変更対象に対応する docs を確認する
-2. API を変えるなら `docs/api/openapi.yaml` を先に確認する
-3. DB を変えるなら `apps/api/prisma/schema.prisma` を確認する
-4. `team-dev-curriculum/` は参照専用であり、このリポジトリの作業では編集しない
+## 実行コマンド
 
-## コマンド実行時の確認
+| 目的 | コマンド |
+| --- | --- |
+| Web + API 開発起動 | `pnpm dev` |
+| lint | `pnpm lint` |
+| typecheck | `pnpm typecheck` |
+| テスト一式 | `pnpm test` |
+| Web の単体テスト 1 ファイル | `pnpm --filter web test -- src/lib/repository.test.ts` |
+| API の単体テスト 1 ファイル | `pnpm --filter api test -- src/app.test.ts` |
+| build | `pnpm build` |
+| E2E 一式 | `pnpm e2e` |
+| E2E 1 ファイル | `pnpm --filter web e2e -- tests/e2e/app.spec.ts` |
+| Prisma Client 再生成 | `pnpm db:generate` |
 
-- 実行前: 依存する `.env`、Docker、DB 状態を確認する
-- 実行後: エラーの有無だけでなく、docs と実装がずれていないかを確認する
-- Prisma 関連の型が壊れた場合は `pnpm db:generate` を疑う
+## 高レベルアーキテクチャ
 
-## 基本検証
+- ルートは `pnpm` ワークスペース + `turbo` で、実行可能なアプリは `apps/web` と `apps/api` の 2 つです。
+- Web 側では `apps/web/src/lib/repository.ts` が `demo` / `api` モードを切り替えます。画面は repository 境界越しにしかデータへ触れません。
+- API 側では `apps/api/src/app.ts` が CORS、Cookie、Zod 検証、HTTP レスポンス変換を担当し、業務ルールは `apps/api/src/services/board-service.ts` に集約します。
+- 永続化は `apps/api/src/services/prisma-board-store.ts` と `apps/api/prisma/schema.prisma` に閉じ込めます。
 
-```bash
-pnpm lint
-pnpm typecheck
-pnpm test
-pnpm build
-```
+| 正本 | 役割 |
+| --- | --- |
+| `docs/api/openapi.yaml` | SPA と API の通信契約 |
+| `apps/api/prisma/schema.prisma` | DB モデルと永続化契約 |
+| `docs/auth.md` | セッション Cookie と認証境界の補足 |
+| `docs/deployment.md` | SPA / API 分離配備の補足 |
 
-画面導線や起動フローを触った場合は追加で `pnpm e2e` も確認してください。
+## この repo で重要な約束
 
-## 変更後の検証手順
-
-1. 影響範囲の docs を更新する
-2. 基本検証を通す
-3. 画面フローを変えた場合は Playwright も通す
-4. README と `docs/` の説明が実装と一致していることを確認する
-
-## 禁止事項
-
-- `team-dev-curriculum/` をこの作業の一部として編集しない
-- UI から直接 Prisma や DB へ接続しない
-- OpenAPI と実装を片方だけ更新しない
-- docs を古いまま残さない
+- localStorage は `demo-repository` に、`fetch` は `api-repository` に閉じ込め、画面コンポーネントへ散らしません。
+- 認証の本体は Web ではなく API 側にあります。Cookie セッションと認可説明は API 前提で考えます。
+- Express route は薄く保ち、HTTP 変換と Zod 検証に集中させ、業務ルールは `board-service.ts` に寄せます。
+- `packages/shared` は重複削減のための共有物であり、OpenAPI や Prisma schema の代わりにはしません。
+- Web / API の Vitest はどちらも 100% coverage 閾値を前提にしているため、テストを減らす変更より境界を保つ変更を優先します。

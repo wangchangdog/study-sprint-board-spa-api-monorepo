@@ -2,63 +2,33 @@
 
 ## この repo の前提
 
-Study Sprint Board の教材群のうち、この repo は **分離 SPA / API 見本** です。
+この repo は `Study Sprint Board` の **SPA / API 分離見本** です。Next.js 一体型でも Supabase 構成でもありません。`apps/web` と `apps/api` を HTTP 契約で分け、責務境界を読みやすくしています。
 
-- `apps/web`: Vite + React + TypeScript + React Router + Tailwind CSS
-- `apps/api`: Express + TypeScript + Zod + Prisma + PostgreSQL
-- `packages/shared`: 共通型、demo seed、board helper、validation
-- 認証: HTTP-only セッション Cookie
+## 実行コマンド
 
-## 説明するときの注意
+| 目的 | コマンド |
+| --- | --- |
+| lint | `pnpm lint` |
+| typecheck | `pnpm typecheck` |
+| テスト一式 | `pnpm test` |
+| Web の単体テスト 1 ファイル | `pnpm --filter web test -- src/lib/repository.test.ts` |
+| API の単体テスト 1 ファイル | `pnpm --filter api test -- src/app.test.ts` |
+| build | `pnpm build` |
+| E2E 一式 | `pnpm e2e` |
+| E2E 1 ファイル | `pnpm --filter web e2e -- tests/e2e/app.spec.ts` |
 
-- この repo を Next.js 構成として説明しない
-- この repo を Supabase 構成として説明しない
-- 教材として、**なぜ別 API にするのか** を優先して説明する
-- 同じ MVP を兄弟 repo と比較できるようにする
+## 高レベルアーキテクチャ
 
-## モノレポ運用
+- `apps/web/src/lib/repository.ts` が `demo` / `api` を切り替え、画面は repository 境界を越えてのみデータに触れます。
+- `apps/api/src/app.ts` は CORS、Cookie セッション、Zod 検証、HTTP 変換を担当し、業務ルールは `apps/api/src/services/board-service.ts` に寄せています。
+- 永続化は `apps/api/prisma/schema.prisma` と store 実装側に閉じ込めています。
+- `docs/api/openapi.yaml` が通信契約の正本で、`docs/api-spec.md` は授業向け補足です。
+- 認証と分離配備の説明は `docs/auth.md` と `docs/deployment.md` に分かれています。
 
-- ルートは `pnpm workspace` + `turbo`
-- 横断コマンドはルートの `package.json` から実行する
-- package 間依存は `workspace:*`
+## 重要な規約
 
-## 実装方針
-
-### Web
-
-- 画面ルーティングは `apps/web/src/routes`
-- UI は `demo` / `api` の両モードを意識する
-- localStorage は `demo-repository` に閉じ込める
-- API 通信は `api-repository` に閉じ込める
-
-### API
-
-- エンドポイントは `apps/api/src/app.ts`
-- 入力検証は Zod を通す
-- セッション確認は API 側で一元化する
-- 永続化の正本は `apps/api/prisma/schema.prisma`
-
-### 共有契約
-
-- HTTP 契約の正本は `docs/api/openapi.yaml`
-- 認証説明は `docs/auth.md`
-- 配備説明は `docs/deployment.md`
-- shared package の型と docs をずらさない
-
-## ドキュメント方針
-
-- README は比較教材としての入口
-- docs は「何があるか」だけでなく「なぜ分けるか」を書く
-- API / auth / deployment はセットで更新する
-
-## 検証
-
-変更後の確認コマンド:
-
-```bash
-pnpm lint
-pnpm typecheck
-pnpm test
-pnpm build
-pnpm e2e
-```
+- localStorage は `demo-repository` に、HTTP 通信は `api-repository` に閉じ込めます。
+- UI から DB や Prisma を直接意識させず、API 側でセッション Cookie と認証を一元化します。
+- `packages/shared` は共通型や validation の共有に使いますが、契約の唯一の正本としては扱いません。
+- 通信仕様を変えるときは `docs/api/openapi.yaml` と実装を同時に更新します。
+- 画面導線や auth/deployment の説明を変えたら `docs/auth.md` と `docs/deployment.md` も揃えます。
